@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoDiGi PDF Editor</title>
+    <!-- PDF.js and pdf-lib will be loaded from CDN - for offline use, download these libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .toolbar {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .editor-area {
+            display: flex;
+            height: calc(100vh - 250px);
+            min-height: 500px;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #f8f9fa;
+            border-right: 2px solid #e9ecef;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 16px;
+        }
+
+        .tool-section {
+            margin-bottom: 25px;
+        }
+
+        .tool-section label {
+            display: block;
+            margin-bottom: 8px;
+            color: #6c757d;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .tool-section input,
+        .tool-section select,
+        .tool-section textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .tool-section textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .color-picker-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .color-picker-group input[type="color"] {
+            width: 50px;
+            height: 35px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .canvas-container {
+            flex: 1;
+            padding: 30px;
+            overflow: auto;
+            background: #e9ecef;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #pdf-canvas {
+            background: white;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .page-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-info {
+            font-size: 14px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .welcome-message svg {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 30px;
+            opacity: 0.5;
+        }
+
+        .welcome-message h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        .welcome-message p {
+            font-size: 16px;
+            line-height: 1.6;
+            max-width: 500px;
+            margin: 0 auto 30px;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+
+        .feature-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .feature-item h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .feature-item p {
+            font-size: 14px;
+            color: #6c757d;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .toolbar {
+                padding: 10px;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>BoDiGi PDF Editor</h1>
+                <div class="subtitle">Professional PDF Editing Made Simple</div>
+            </div>
+        </div>
+
+        <div class="toolbar">
+            <input type="file" id="file-input" accept=".pdf">
+            <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+                📁 Open PDF
+            </button>
+            <button class="btn btn-success" id="save-btn" onclick="savePDF()" disabled>
+                💾 Save PDF
+            </button>
+            <button class="btn btn-info" id="add-text-btn" onclick="activateTextMode()" disabled>
+                ✏️ Add Text
+            </button>
+            <button class="btn btn-secondary" id="add-rect-btn" onclick="activateRectMode()" disabled>
+                ⬜ Add Rectangle
+            </button>
+            <button class="btn btn-danger" id="clear-btn" onclick="clearAnnotations()" disabled>
+                🗑️ Clear All
+            </button>
+        </div>
+
+        <div class="editor-area">
+            <div class="sidebar">
+                <div class="tool-section">
+                    <h3>Text Properties</h3>
+                    <label>Text Content:</label>
+                    <textarea id="text-content" placeholder="Enter text to add...">Sample Text</textarea>
+                    
+                    <label>Font Size:</label>
+                    <input type="number" id="font-size" value="16" min="8" max="72">
+                    
+                    <label>Text Color:</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="text-color" value="#000000">
+                        <span id="text-color-value">#000000</span>
+                    </div>
+                </div>
+
+                <div class="tool-section">
+                    <h3>Shape Properties</h3>
+                    <label>Border Color:</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="border-color" value="#667eea">
+                        <span id="border-color-value">#667eea</span>
+                    </div>
+                    
+                    <label>Fill Color:</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="fill-color" value="#ffffff">
+                        <span id="fill-color-value">#ffffff</span>
+                    </div>
+                    
+                    <label>Border Width:</label>
+                    <input type="number" id="border-width" value="2" min="1" max="10">
+                </div>
+
+                <div class="tool-section">
+                    <h3>Instructions</h3>
+                    <p style="font-size: 13px; line-height: 1.6; color: #6c757d;">
+                        1. Click "Open PDF" to load a PDF file<br>
+                        2. Click "Add Text" and click on the PDF to place text<br>
+                        3. Click "Add Rectangle" and drag to draw shapes<br>
+                        4. Click "Save PDF" to download your edited PDF
+                    </p>
+                </div>
+            </div>
+
+            <div class="canvas-container" id="canvas-container">
+                <div class="welcome-message">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <h2>Welcome to BoDiGi PDF Editor</h2>
+                    <p>A powerful, easy-to-use PDF editing tool for small businesses. Edit, annotate, and enhance your PDF documents right in your browser.</p>
+                    
+                    <div class="feature-list">
+                        <div class="feature-item">
+                            <h4>📄 View PDFs</h4>
+                            <p>Open and view PDF files with high quality rendering</p>
+                        </div>
+                        <div class="feature-item">
+                            <h4>✏️ Add Text</h4>
+                            <p>Insert custom text anywhere on your PDF pages</p>
+                        </div>
+                        <div class="feature-item">
+                            <h4>🎨 Draw Shapes</h4>
+                            <p>Add rectangles and annotations with custom colors</p>
+                        </div>
+                        <div class="feature-item">
+                            <h4>💾 Save Edits</h4>
+                            <p>Export your edited PDF with all modifications preserved</p>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" style="margin-top: 30px; padding: 15px 40px; font-size: 16px;" onclick="document.getElementById('file-input').click()">
+                        Get Started - Open a PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set up PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Global variables
+        let pdfDoc = null;
+        let currentPage = 1;
+        let totalPages = 0;
+        let scale = 1.5;
+        let canvas = null;
+        let ctx = null;
+        let annotations = [];
+        let currentMode = null;
+        let isDrawing = false;
+        let startX = 0;
+        let startY = 0;
+        let pdfBytes = null;
+
+        // Color picker updates
+        document.getElementById('text-color').addEventListener('input', function() {
+            document.getElementById('text-color-value').textContent = this.value;
+        });
+
+        document.getElementById('border-color').addEventListener('input', function() {
+            document.getElementById('border-color-value').textContent = this.value;
+        });
+
+        document.getElementById('fill-color').addEventListener('input', function() {
+            document.getElementById('fill-color-value').textContent = this.value;
+        });
+
+        // File input handler
+        document.getElementById('file-input').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (file && file.type === 'application/pdf') {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfBytes = new Uint8Array(arrayBuffer);
+                loadPDF(arrayBuffer);
+            }
+        });
+
+        async function loadPDF(arrayBuffer) {
+            try {
+                const loadingTask = pdfjsLib.getDocument({data: arrayBuffer});
+                pdfDoc = await loadingTask.promise;
+                totalPages = pdfDoc.numPages;
+                
+                // Enable buttons
+                document.getElementById('save-btn').disabled = false;
+                document.getElementById('add-text-btn').disabled = false;
+                document.getElementById('add-rect-btn').disabled = false;
+                document.getElementById('clear-btn').disabled = false;
+                
+                // Clear welcome message and render page
+                currentPage = 1;
+                annotations = [];
+                renderPage(currentPage);
+            } catch (error) {
+                alert('Error loading PDF: ' + error.message);
+            }
+        }
+
+        async function renderPage(pageNum) {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({scale: scale});
+            
+            // Create canvas if it doesn't exist
+            const container = document.getElementById('canvas-container');
+            container.innerHTML = '';
+            
+            canvas = document.createElement('canvas');
+            canvas.id = 'pdf-canvas';
+            ctx = canvas.getContext('2d');
+            
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            container.appendChild(canvas);
+            
+            // Render PDF page
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            
+            // Render annotations
+            renderAnnotations();
+            
+            // Add page controls
+            if (totalPages > 1) {
+                const pageControls = document.createElement('div');
+                pageControls.className = 'page-controls';
+                pageControls.innerHTML = `
+                    <button class="btn btn-secondary" onclick="previousPage()" ${currentPage <= 1 ? 'disabled' : ''}>
+                        ← Previous
+                    </button>
+                    <span class="page-info">Page ${currentPage} of ${totalPages}</span>
+                    <button class="btn btn-secondary" onclick="nextPage()" ${currentPage >= totalPages ? 'disabled' : ''}>
+                        Next →
+                    </button>
+                `;
+                container.appendChild(pageControls);
+            }
+            
+            // Add mouse event listeners
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('click', handleClick);
+        }
+
+        function renderAnnotations() {
+            annotations.filter(a => a.page === currentPage).forEach(annotation => {
+                if (annotation.type === 'text') {
+                    ctx.font = `${annotation.fontSize}px Arial`;
+                    ctx.fillStyle = annotation.color;
+                    ctx.fillText(annotation.text, annotation.x, annotation.y);
+                } else if (annotation.type === 'rectangle') {
+                    ctx.strokeStyle = annotation.borderColor;
+                    ctx.fillStyle = annotation.fillColor;
+                    ctx.lineWidth = annotation.borderWidth;
+                    ctx.fillRect(annotation.x, annotation.y, annotation.width, annotation.height);
+                    ctx.strokeRect(annotation.x, annotation.y, annotation.width, annotation.height);
+                }
+            });
+        }
+
+        function activateTextMode() {
+            currentMode = 'text';
+            canvas.style.cursor = 'text';
+            document.getElementById('add-text-btn').style.background = '#28a745';
+            document.getElementById('add-rect-btn').style.background = '#6c757d';
+        }
+
+        function activateRectMode() {
+            currentMode = 'rectangle';
+            canvas.style.cursor = 'crosshair';
+            document.getElementById('add-rect-btn').style.background = '#28a745';
+            document.getElementById('add-text-btn').style.background = '#17a2b8';
+        }
+
+        function handleClick(e) {
+            if (currentMode === 'text') {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const text = document.getElementById('text-content').value;
+                const fontSize = parseInt(document.getElementById('font-size').value);
+                const color = document.getElementById('text-color').value;
+                
+                annotations.push({
+                    type: 'text',
+                    page: currentPage,
+                    x: x,
+                    y: y,
+                    text: text,
+                    fontSize: fontSize,
+                    color: color
+                });
+                
+                renderAnnotations();
+            }
+        }
+
+        function handleMouseDown(e) {
+            if (currentMode === 'rectangle') {
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                startX = e.clientX - rect.left;
+                startY = e.clientY - rect.top;
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (isDrawing && currentMode === 'rectangle') {
+                const rect = canvas.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+                
+                // Redraw page and annotations
+                renderPage(currentPage).then(() => {
+                    // Draw temporary rectangle
+                    ctx.strokeStyle = document.getElementById('border-color').value;
+                    ctx.fillStyle = document.getElementById('fill-color').value;
+                    ctx.lineWidth = parseInt(document.getElementById('border-width').value);
+                    const width = currentX - startX;
+                    const height = currentY - startY;
+                    ctx.fillRect(startX, startY, width, height);
+                    ctx.strokeRect(startX, startY, width, height);
+                });
+            }
+        }
+
+        function handleMouseUp(e) {
+            if (isDrawing && currentMode === 'rectangle') {
+                const rect = canvas.getBoundingClientRect();
+                const endX = e.clientX - rect.left;
+                const endY = e.clientY - rect.top;
+                
+                const width = endX - startX;
+                const height = endY - startY;
+                
+                if (Math.abs(width) > 5 && Math.abs(height) > 5) {
+                    annotations.push({
+                        type: 'rectangle',
+                        page: currentPage,
+                        x: startX,
+                        y: startY,
+                        width: width,
+                        height: height,
+                        borderColor: document.getElementById('border-color').value,
+                        fillColor: document.getElementById('fill-color').value,
+                        borderWidth: parseInt(document.getElementById('border-width').value)
+                    });
+                }
+                
+                isDrawing = false;
+                renderPage(currentPage);
+            }
+        }
+
+        function clearAnnotations() {
+            if (confirm('Are you sure you want to clear all annotations on this page?')) {
+                annotations = annotations.filter(a => a.page !== currentPage);
+                renderPage(currentPage);
+            }
+        }
+
+        async function savePDF() {
+            try {
+                // Load the original PDF with pdf-lib
+                const pdfLibDoc = await PDFLib.PDFDocument.load(pdfBytes);
+                const pages = pdfLibDoc.getPages();
+                
+                // Add annotations to each page
+                for (let annotation of annotations) {
+                    const page = pages[annotation.page - 1];
+                    const pageHeight = page.getHeight();
+                    
+                    if (annotation.type === 'text') {
+                        // Convert hex color to RGB
+                        const rgb = hexToRgb(annotation.color);
+                        
+                        page.drawText(annotation.text, {
+                            x: annotation.x,
+                            y: pageHeight - annotation.y,
+                            size: annotation.fontSize,
+                            color: PDFLib.rgb(rgb.r / 255, rgb.g / 255, rgb.b / 255)
+                        });
+                    } else if (annotation.type === 'rectangle') {
+                        const borderRgb = hexToRgb(annotation.borderColor);
+                        const fillRgb = hexToRgb(annotation.fillColor);
+                        
+                        page.drawRectangle({
+                            x: annotation.x,
+                            y: pageHeight - annotation.y - annotation.height,
+                            width: annotation.width,
+                            height: annotation.height,
+                            borderColor: PDFLib.rgb(borderRgb.r / 255, borderRgb.g / 255, borderRgb.b / 255),
+                            color: PDFLib.rgb(fillRgb.r / 255, fillRgb.g / 255, fillRgb.b / 255),
+                            borderWidth: annotation.borderWidth
+                        });
+                    }
+                }
+                
+                // Save the PDF
+                const pdfBytesModified = await pdfLibDoc.save();
+                
+                // Download the file
+                const blob = new Blob([pdfBytesModified], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'edited-document.pdf';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                alert('PDF saved successfully!');
+            } catch (error) {
+                alert('Error saving PDF: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage(currentPage);
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage(currentPage);
+            }
+        }
+    </script>
+</body>
+</html>
